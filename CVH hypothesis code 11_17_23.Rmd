@@ -1,0 +1,524 @@
+---
+title: "CTMax_trials"
+output:
+  word_document: default
+  html_document: default
+
+ 
+---
+
+```{r personal setup edit as needed, include=FALSE}
+#Loading datasets and libraries
+
+setwd("C:/Users/jnye/Dropbox/Manuscripts/CVH")   #For desktop
+
+#C:\Users\jnye\Dropbox\Manuscripts\CVH
+
+CTMax_results <- read.csv("CTMax Results 12_13_2022.csv")
+CTMin_results <- read.csv("CTMin results 12_13_2022.csv")
+#latitudes<-read.csv("Species_latitudes.csv")
+
+CTMax_results$Weight<-as.numeric(CTMax_results$Weight)
+CTMax_results$Med50<-as.numeric(CTMax_results$Weight)
+
+library(plotrix) 
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(tidyr)
+library(broom)
+library(lme4)
+library(lmtest)
+library(rlist)
+
+#####Could also subset all fish <80g, but then can't run the linear regs of weight vs CT
+
+#CTMax_results<-subset(CTMax_results, CTMax_results$Weight<80)
+#CTMin_results<-subset(CTMin_results, CTMin_results$Weight<80)
+
+#CTMax_results<- CTMax_results[c(1:532), ]
+#CTMax_results$`Weight` <- as.numeric(CTMax_results$`Weight`)
+
+table(CTMax_results$Species,CTMax_results$`Acclimation.Category`)
+
+table(CTMin_results$Species,CTMin_results$`Acclimation.Category`)
+
+#Choose only species with all acclimation temperatures
+CTMax_filefish<-subset(CTMax_results,CTMax_results$Species=='Filefish')
+CTMin_filefish<-subset(CTMin_results,CTMin_results$Species=='Filefish')
+
+#CT_filefish<-rbind(CTMax_filefish,CTMin_filefish)
+```
+
+```{r}
+#Plot regression of Acclimation temperature vs. CTMax and CTMin
+#first fit regression line
+Maxfit<-lm(CTMax_filefish$CTMax~CTMax_filefish$Acclimation.Category)
+#In a table record the R2, slope and intercept with summary
+#Let me know if any pvalues are greater than p=0.015
+
+summary(Maxfit)
+
+
+plot(CTMax_filefish$Acclimation.Category,CTMax_filefish$CTMax,ylim =c(0,40),col='purple')
+#points(CTMax_filefish$Acclimation.temp,CTMax_filefish$YSI.CTMax,col='red')
+#points(CTMax_filefish$Acclimation.Category,CTMax_filefish$CTMax,col='blue')
+abline(Maxfit)
+
+
+Minfit<-lm(CTMin_filefish$CTMin~CTMin_filefish$Acclimation.Category)
+summary(Minfit)
+
+points(CTMin_filefish$Acclimation.Category,CTMin_filefish$CTMin)
+#points(CTMax_filefish$Acclimation.temp,CTMax_filefish$YSI.CTMax,col='red')
+
+abline(Minfit)
+
+
+```
+
+```{r}
+#box and whisker plot
+standard_theme <- theme_bw() + theme(panel.border = element_rect(fill=NA, colour = "black", size=1)) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + theme(axis.text.x=element_blank()) + theme(legend.text.align= 0, legend.title=element_text(size = 9), legend.text = element_text(size=8),axis.text=element_text(size=12,hjust=.8), axis.title=element_text(size=10))
+
+CTmax_acc<-CTMax_results %>% filter(Species %in% c("Filefish", "Pinfish", "Spot ", "Gray snapper")) %>% ggplot(aes(x= Species, y= `CTMax`, col = as.factor(`Acclimation.Category`))) + geom_boxplot(outlier.shape = NA, width=.5, position="dodge") + standard_theme + labs(col = "Acclimation temperature (°C)", tag = "a)") + theme(plot.tag.position = c(0.1,0.95))
+
+```
+
+```{r}
+#####CTMin
+
+CTmin_acc<-CTMin_results %>% filter(Species %in% c("Filefish", "Pinfish", "Spot ", "Gray snapper")) %>% ggplot(aes(x= Species, y= `CTMin`, col= as.factor(`Acclimation.Category`))) + geom_boxplot(outlier.shape = NA) + standard_theme +  labs(col = "Acclimation temperature (°C)", tag = "b)") + theme(plot.tag.position = c(0.1,0.95))
+```
+
+```{r}
+#Put Ctmax Ctmin on same panel fig
+panel_plot <- ggarrange(CTmax_acc + rremove("xlab"), label.y = 1.05, CTmin_acc + rremove("xlab"), common.legend= TRUE, legend="right", ncol = 1, nrow = 2)
+
+annotate_figure(panel_plot, bottom= text_grob("Species", size=20))
+
+#ggsave("Lucy_Acc temp all spp.tiff", units="in", width=8, height=12, dpi=300, compression = 'lzw')
+```
+
+
+```{r}
+##Size vs CTMax relationship
+
+CTMaxBSBsizelm <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Black sea bass"))
+anova(CTMaxBSBsizelm)
+
+CTMaxBSBsizelm2 <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Black sea bass", `Weight` < 80))
+anova(CTMaxBSBsizelm2)
+#BSB significant p<0.05 unless choose less than 80g
+
+CTMaxSSTsizelm <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Spotted sea trout"))
+anova(CTMaxSSTsizelm) 
+#NS
+CTMaxGGsizelm <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Gag grouper"))
+anova(CTMaxGGsizelm)
+#NS
+
+CTMaxFFsizelm <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Filefish"))
+anova(CTMaxFFsizelm)
+#NS
+
+#CTMaxLSsizelm <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Lane snapper"))
+#anova(CTMaxLSsizelm)
+#NS
+
+CTMaxGSsizelm <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Gray snapper"))
+anova(CTMaxGSsizelm)
+
+CTMaxPFsizelm <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Pinfish"))
+anova(CTMaxPFsizelm)
+
+CTMaxPFsizelm2 <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Pinfish", `Weight` < 80))
+anova(CTMaxPFsizelm2)
+
+
+CTMaxSHsizelm <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Sheepshead"))
+anova(CTMaxSHsizelm)
+
+CTMaxSsizelm <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Spot"))
+anova(CTMaxSsizelm)
+#
+CTMaxSsizelm2 <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Spot", `Weight`< 20))
+anova(CTMaxSsizelm2)
+#Can't get rid of size effect in spot unless use only 10g and below
+#must remove outlier
+
+CTMaxTsizelm <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Tautog"))
+anova(CTMaxTsizelm)
+
+CTMaxATHsizelm <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Atlantic Thread Herring"))
+anova(CTMaxATHsizelm)
+#
+CTMaxGFsizelm <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Gulf Flounder"))
+anova(CTMaxGFsizelm)
+#
+CTMaxPsizelm <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Permit"))
+anova(CTMaxPsizelm)
+#
+CTMaxPomsizelm <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Pompano"))
+anova(CTMaxPomsizelm)
+#
+CTMaxSKsizelm <- lm(`CTMax`~`Weight`, data = CTMax_results %>% filter(`Acclimation.Category` == 20, Species == "Southern Kingfish"))
+anova(CTMaxSKsizelm)
+
+
+```
+
+```{r}
+##Size vs CTMin relationship
+CTMinGGsizelm <- lm(`CTMin`~`Weight`, data = CTMin_results %>% filter(`Acclimation.Category` == 20, Species == "Gag grouper"))
+anova(CTMinGGsizelm)
+#
+CTMinFFsizelm <- lm(`CTMin`~`Weight`, data = CTMin_results %>% filter(`Acclimation.Category` == 20, Species == "Filefish"))
+anova(CTMinFFsizelm)
+CTMinBSBsizelm <- lm(`CTMin`~`Weight`, data = CTMin_results %>% filter(`Acclimation.Category` == 20, Species == "Black sea bass"))
+anova(CTMinBSBsizelm)
+
+CTMinBSBsizelm2 <- lm(`CTMin`~`Weight`, data = CTMin_results %>% filter(`Acclimation.Category` == 20, Species == "Black sea bass", Weight< 80))
+anova(CTMinBSBsizelm2)
+
+CTMinPFsizelm <- lm(`CTMin`~`Weight`, data = CTMin_results %>% filter(`Acclimation.Category` == 20, Species == "Pinfish"))
+anova(CTMinPFsizelm)
+#sig
+
+CTMinPFsizelm2 <- lm(`CTMin`~`Weight`, data = CTMin_results %>% filter(`Acclimation.Category` == 20, Species == "Pinfish", Weight< 80))
+anova(CTMinPFsizelm2)
+
+CTMinSsizelm <- lm(`CTMin`~`Weight`, data = CTMin_results %>% filter(`Acclimation.Category` == 20, Species == "Spot"))
+anova(CTMinSsizelm)
+CTMinGSsizelm <- lm(`CTMin`~`Weight`, data = CTMin_results %>% filter(`Acclimation.Category` == 20, Species == "Gray snapper"))
+anova(CTMinGSsizelm)
+#
+CTMinSHsizelm <- lm(`CTMin`~`Weight`, data = CTMin_results %>% filter(`Acclimation.Category` == 20, Species == "Sheepshead"))
+anova(CTMinSHsizelm)
+#
+CTMinATHsizelm <- lm(`CTMin`~`Weight`, data = CTMin_results %>% filter(`Acclimation.Category` == 20, Species == "Atlantic Thread Herring"))
+anova(CTMinATHsizelm)
+#
+CTMinGFsizelm <- lm(`CTMin`~`Weight`, data = CTMin_results %>% filter(`Acclimation.Category` == 20, Species == "Gulf Flounder"))
+anova(CTMinGFsizelm)
+#
+
+CTMinPsizelm <- lm(`CTMin`~`Weight`, data = CTMin_results %>% filter(`Acclimation.Category` == 20, Species == "Permit"))
+anova(CTMinPsizelm)
+
+CTMinPomsizelm <- lm(`CTMin`~`Weight`, data = CTMin_results %>% filter(`Acclimation.Category` == 20, Species == "Pompano"))
+anova(CTMinPomsizelm)
+#
+CTMinSKsizelm <- lm(`CTMin`~`Weight`, data = CTMin_results %>% filter(`Acclimation.Category` == 20, Species == "Southern Kingfish"))
+anova(CTMinSKsizelm)
+#
+CTMinTsizelm <- lm(`CTMin`~`Weight`, data = CTMin_results %>% filter(`Acclimation.Category` == 20, Species == "Tautog"))
+anova(CTMinTsizelm)
+CTMinSSTsizelm <- lm(`CTMin`~`Weight`, data = CTMin_results %>% filter(`Acclimation.Category` == 20, Species == "Spotted Sea Trout"))
+anova(CTMinSSTsizelm)
+
+#Spotted sea trout CTmin declines with size but not significant at 0.003, Bonferonni corrected pvalue
+
+```
+
+```{r}
+#CTMax vs Latitude
+
+cbPalette <- c("#000000", "#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+scale_colour_manual(values=cbPalette)
+
+CTMax2_results <- CTMax_results %>% filter(`Acclimation.Category` == 20 , `Weight` < 80, Species %in% c("Atlantic Thread Herring", "Crevalle Jack", "Black sea bass", "Filefish", "Gag grouper", "Gray snapper", "Gulf Flounder", "Lane snapper", "Spotted sea trout", "Permit", "Pinfish", "Pompano", "Sheepshead", "Southern Kingfish", "Spot", "Tautog"))
+
+#Removing outliers
+CTMax2_results$Z.Score <- ave(CTMax2_results$`CTMax`, CTMax2_results$Species, FUN = scale)
+
+CTMax2_results <- CTMax2_results %>% dplyr::filter(Z.Score < 3 & Z.Score > -3)
+
+table(CTMax2_results$Species,CTMax2_results$`Acclimation.Category`)
+
+CTMax2_results$mean <- ave(CTMax2_results$`CTMax`, CTMax2_results$Species, FUN = mean)
+CTMax2_results$se <- ave(CTMax2_results$`CTMax`, CTMax2_results$Species, FUN = std.error)
+
+#CTMax2_results$`CTMax (°C)` <- (CTMax2_results$`CTMax (°C)`)^(3)
+hist(CTMax2_results$`CTMax`, col='steelblue')
+
+#pdf(file = 'CTMaxplot.pdf') 
+CTMaxaov <- aov(`CTMax` ~ `Med50` + Error(Species), data = CTMax2_results %>% filter(`Acclimation.Category` == 20 , Species %in% c("Atlantic Thread Herring", "Black sea bass", "Filefish", "Gag grouper", "Gray snapper", "Gulf Flounder", "Lane snapper", "Spotted sea trout", "Permit", "Pinfish", "Pompano", "Sheepshead", "Southern Kingfish", "Spot", "Tautog")))
+summary(CTMaxaov)
+CTMaxlm <- lm(`CTMax` ~ `Med50`, data = CTMax2_results %>% filter(`Acclimation.Category` == 20 , Species %in% c("Atlantic Thread Herring", "Black sea bass", "Filefish", "Gag grouper", "Gray snapper", "Gulf Flounder", "Lane snapper", "Spotted sea trout", "Permit", "Pinfish", "Pompano", "Sheepshead", "Southern Kingfish", "Spot", "Tautog")))
+summary(CTMaxlm)
+
+#CTMax2_results$pred <- predict(CTMaxlm)
+
+#shapiro.test(CTMax2_results$`CTMax`)
+shapiro.test(CTMaxaov$Species$residuals)
+#data is normal when correct for species? W=0.94, p=0.51
+bptest(`CTMax`~`Med50`,data=CTMax2_results)
+shapiro.test(CTMaxlm$residuals)
+bptest(CTMaxlm)
+
+
+```
+
+```{r}
+#plot size vs Ct value
+standard_theme <- theme_bw() + theme(panel.border = element_rect(fill=NA, colour = "black", size=1)) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + theme(legend.text.align= 0, legend.title= element_text(size = 9), legend.text = element_text(size= 8), axis.text=element_text(size=8), axis.title=element_text(size=10))
+
+CTmax_size<-CTMax2_results %>% filter(`Acclimation.Category` == 20, `Weight` < 80) %>% filter(Species %in% c("Atlantic Thread Herring", "Pompano","Black sea bass", "Crevalle Jack", "Filefish", "Gag grouper", "Gulf Flounder", "Pinfish", "Permit", "Sheepshead", "Southern Kingfish", "Spotted sea trout", "Spot", "Gray snapper", "Tautog")) %>% ggplot() + geom_point(aes(x = as.numeric(`Weight`), y = `CTMax`)) + facet_wrap(~Species, scales = "free") + standard_theme + labs(x= "Weight (g)", tag = "a)") + theme(plot.tag.position = c(0,0.95))
+
+ggsave("CTmax_v_size80.tiff", units="in", width=8, height=5, dpi=300, compression = 'lzw')
+
+```
+```{r}
+#plot size vs Ct value
+standard_theme <- theme_bw() + theme(panel.border = element_rect(fill=NA, colour = "black", size=1)) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + theme(legend.text.align= 0, legend.title= element_text(size = 9), legend.text = element_text(size= 8), axis.text=element_text(size=8), axis.title=element_text(size=10))
+
+CTmin_size<-CTMin2_results %>% filter(`Acclimation.Category` == 20, `Weight` < 80) %>% filter(Species %in% c("Atlantic Thread Herring", "Pompano","Black sea bass", "Crevalle Jack", "Filefish", "Gag grouper", "Gulf Flounder", "Pinfish", "Permit", "Sheepshead", "Southern Kingfish", "Spotted Sea Trout", "Spot", "Gray snapper", "Tautog")) %>% ggplot() + geom_point(aes(x = `Weight`, y = `CTMin`)) + facet_wrap(~Species, scales = "free") + standard_theme + labs(x= "Weight (g)", tag = "b)") + theme(plot.tag.position = c(0,0.95))
+
+#ggsave("CTmin_v_size80.tiff", units="in", width=8, height=5, dpi=300, compression = 'lzw')
+```
+
+```{r}
+
+CTMax_Speciesmean <- aggregate(x = CTMax2_results$`CTMax`, by = list(CTMax2_results$Species,CTMax2_results$Family), FUN = mean)
+CTMax_Speciesstd <- aggregate(x = CTMax2_results$`CTMax`, by = list(CTMax2_results$Species,CTMax2_results$Family), FUN = sd)
+CTMax_Species<-merge(CTMax_Speciesmean,CTMax_Speciesstd,by=c("Group.1","Group.2"))
+
+CTMax_val<-merge(CTMax_Species,latitudes,by="Group.1")
+
+shapiro.test(CTMax_val$Med50)
+shapiro.test(CTMax_val$x.x)
+cor(CTMax_val$Med50,CTMax_val$x.x)
+#Not significantly correlated  -.072 and both vars are normal
+
+CTmaxplot<-CTMax_val %>% ggplot() + geom_errorbar(aes(x = `Med50`, y = x.x, ymin = x.x - x.y, ymax = x.x + x.y, group = Group.1, colour = Group.2)) + geom_point(aes(x = `Med50`, y = x.x, colour = Group.2)) + standard_theme + ylab("CTMax (°C)") + xlab("") + guides(color = guide_legend(title = "Family")) + scale_colour_manual(values=cbPalette)
+
+
+#ggsave("CTmax_v_lat.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
+
+```
+
+```{r}
+#Put Ctmax Ctmin vs size on same panel fig
+panel_plot <- ggarrange(CTmax_size + rremove("xlab"), label.y = 1.05, CTmin_size + rremove("xlab"), ncol = 1, nrow = 2)
+
+annotate_figure(panel_plot, bottom= text_grob("Weight (g)", size=20))
+
+ggsave("Size.tiff", units="in", width=8, height=12, dpi=300, compression = 'lzw')
+```
+
+
+```{r}
+
+#CTMin vs Latitude
+CTMin2_results <- CTMin_results %>% filter(`Acclimation.Category` == 20, `Weight` < 80) %>% filter(Species %in% c("Atlantic Thread Herring", "Crevalle Jack", "Black sea bass", "Filefish", "Gag grouper", "Gray snapper", "Gulf Flounder", "Spotted sea trout", "Permit", "Pinfish", "Pompano", "Sheepshead", "Southern Kingfish", "Spot", "Tautog"))
+
+CTMin2_results$Z.Score <- ave(CTMin2_results$`CTMin`, CTMin2_results$Species, FUN = scale)
+CTMin2_results <- CTMin2_results %>% dplyr::filter(Z.Score < 3 & Z.Score > -3)
+
+CTMin2_results$mean <- ave(CTMin2_results$`CTMin`, CTMin2_results$Species, FUN = mean)
+CTMin2_results$se <- ave(CTMin2_results$`CTMin`, CTMin2_results$Species, FUN = std.error)
+
+table(CTMin2_results$Species,CTMin2_results$`Acclimation.Category`)
+
+hist(CTMin2_results$`CTMin`, col='steelblue')
+
+CTMinaov <- aov(`CTMin` ~ `Med50` + Error(Species), data = CTMin2_results %>% filter(`Acclimation.Category` == 20 , Species %in% c("Atlantic Thread Herring", "Black sea bass", "Filefish", "Gag grouper", "Gray snapper", "Gulf Flounder", "Lane snapper", "Spotted sea trout", "Permit", "Pinfish", "Pompano", "Sheepshead", "Southern Kingfish", "Spot", "Tautog")))
+summary(CTMinaov)
+
+CTMinlm <- lm(`CTMin` ~ as.numeric(`Med50`), data = CTMin2_results%>% filter(`Acclimation.Category` == 20 , Species %in% c("Atlantic Thread Herring", "Black sea bass", "Filefish", "Gag grouper", "Gray snapper", "Gulf Flounder", "Lane snapper", "Spotted sea trout", "Permit", "Pinfish", "Pompano", "Sheepshead", "Southern Kingfish", "Spot", "Tautog")))
+
+summary(CTMinlm)
+
+#CTMin2_results$pred <- predict(CTMinlm)
+#CTMin2_results$pred2 <- predict(CTMinlm2)
+
+shapiro.test(CTMin2_results$`CTMin`)
+shapiro.test(CTMinaov$Species$residuals)
+#shapiro.test(CTMinaov2$Species$residuals)
+shapiro.test(CTMinlm$residuals)
+bptest(CTMinlm)
+#bptest(CTMinlm2)
+
+CTMin_Speciesmean <- aggregate(x = CTMin2_results$`CTMin`, by = list(CTMin2_results$Species,CTMin2_results$Family), FUN = mean)
+CTMin_Speciesstd <- aggregate(x = CTMin2_results$`CTMin`, by = list(CTMin2_results$Species,CTMin2_results$Family), FUN = sd)
+CTMin_Species<-merge(CTMin_Speciesmean,CTMin_Speciesstd,by=c("Group.1","Group.2"))
+
+#Gray snapper doesn't make it? I think because it has a space in it arg
+CTMin_val<-merge(CTMin_Species,latitudes,by="Group.1")
+
+shapiro.test(CTMin_val$Med50)
+shapiro.test(CTMin_val$x.x)
+cor(CTMin_val$Med50,CTMin_val$x.x)
+#Highly correlated -0.703
+
+CTminplot<-CTMin_val %>% ggplot() + geom_errorbar(aes(x = `Med50`, y = x.x, ymin = x.x - x.y, ymax = x.x + x.y, group = Group.1, colour = Group.2)) + geom_point(aes(x = `Med50`, y = x.x, colour = Group.2)) + standard_theme + ylab("CTMin (°C)") + xlab("Median latitude") + guides(color = guide_legend(title = "Family")) + scale_colour_manual(values=cbPalette)
+
+#ggsave("CTmin_v_lat.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
+
+```
+
+```{r}
+#CTrange vs Latitude
+
+# CTMax_resultsfinal <- CTMax2_results %>% filter(`Acclimation.Category` == 20) %>% filter(Species %in% c("Atlantic Thread Herring", "Black sea bass", "Filefish", "Gag grouper", "Gray snapper", "Gulf Flounder", "Spotted sea trout", "Permit", "Pinfish", "Pompano", "Sheepshead", "Southern Kingfish", "Spot", "Tautog"))
+# CTMin_resultsfinal <- CTMin2_results %>% filter(`Acclimation.Category` == 20) %>% filter(Species %in% c("Atlantic Thread Herring", "Black sea bass", "Filefish", "Gag grouper", "Gray snapper", "Gulf Flounder", "Spotted sea trout", "Permit", "Pinfish", "Pompano", "Sheepshead", "Southern Kingfish", "Spot", "Tautog"))
+# CTMax_Speciesmean <- aggregate(x = CTMax_resultsfinal$`CTMax`, by = list(CTMax_resultsfinal$Species), FUN = mean)
+# CTMin_Speciesmean <- aggregate(x = CTMin_resultsfinal$`CTMin`, by = list(CTMin_resultsfinal$Species), FUN = mean)
+# CTMax_Speciesmean <- CTMax_Speciesmean %>% filter(Group.1 %in% c("Atlantic Thread Herring", "Black sea bass", "Filefish", "Gag grouper", "Gray snapper", "Gulf Flounder", "Spotted sea trout", "Permit", "Pinfish", "Pompano", "Sheepshead", "Southern Kingfish", "Spot", "Tautog"))
+# CTMin_Speciesmean <- CTMin_Speciesmean %>% filter(Group.1 %in% c("Atlantic Thread Herring", "Black sea bass", "Filefish", "Gag grouper", "Gray snapper", "Gulf Flounder", "Spotted sea trout", "Permit", "Pinfish", "Pompano", "Sheepshead", "Southern Kingfish", "Spot", "Tautog"))
+# CTMin_Speciesmean %>% rename(Species = Group.1) %>% rename(`CTMin` = x)
+
+CTSpeciesmean<-merge(CTMin_Speciesmean,CTMax_Speciesmean,by=c("Group.1","Group.2"),all=TRUE)
+#CT_Speciesmean$`CTMax` <- CTMax_Speciesmean$x
+
+CTSpeciesmean$`CTRange` <- CTSpeciesmean$`x.y` - CTSpeciesmean$`x.x`
+AllCTdata<-merge(CTSpeciesmean, latitudes, by="Group.1")
+
+hist(AllCTdata$`CTRange`, col='steelblue')
+AllCTdata$`CTRange2` <- (AllCTdata$`CTRange`)^2
+#
+shapiro.test(AllCTdata$`CTRange`)
+#
+CTrangelm <- lm(`CTRange`~`Med50`, data = AllCTdata)
+CTrangeloglm <- lm(`CTRange`~log(`Med50`), data = AllCTdata)
+CT_aic <- AIC(CTrangelm, CTrangeloglm)
+CT_aic$model <- row.names(CT_aic)
+CT_aic <- CT_aic %>% mutate(del_AIC = AIC - min(AIC))
+CT_aic
+summary(CTrangeloglm)
+summary(CTrangelm)
+#CT_Speciesmean$pred <- predict(CTrangelm)
+#CT_Speciesmean$pred2 <- predict(CTrangeloglm)
+
+shapiro.test(CTrangelm$residuals)
+shapiro.test(CTrangeloglm$residuals)
+
+bptest(CTrangelm)
+bptest(CTrangeloglm)
+
+# CTrange50lm <- lm(`CTRange (°C)`~`Species Latitude 50 (°N)`, data = CT_Speciesmean)
+# CTrange50loglm <- lm(`CTRange (°C)`~log(`Species Latitude 50 (°N)`), data = CT_Speciesmean)
+# CT50_aic <- AIC(CTrange50lm, CTrange50loglm)
+# CT50_aic$model <- row.names(CT50_aic)
+# CT50_aic <- CT50_aic %>% mutate(del_AIC = AIC - min(AIC))
+# CT50_aic
+# summary(CTrange50loglm)
+# summary(CTrange50lm)
+# CT_Speciesmean$pred3 <- predict(CTrange50lm)
+# CT_Speciesmean$pred4 <- predict(CTrange50loglm)
+# 
+# bptest(CTrange50lm)
+# bptest(CTrange50loglm)
+# 
+# CT_Speciesmean$`CTRange (°C)` <- sqrt(CT_Speciesmean$`CTRange (°C)`)
+# CT_Speciesmean$pred <- sqrt(CT_Speciesmean$pred)
+# CT_Speciesmean$pred2 <- sqrt(CT_Speciesmean$pred2)
+# CT_Speciesmean$pred3 <- sqrt(CT_Speciesmean$pred3)
+# CT_Speciesmean$pred4 <- sqrt(CT_Speciesmean$pred4)
+
+#Plot species Thermal range with median latitude of occurrence
+CTRangeplot <-AllCTdata %>% ggplot() + geom_point(aes(x = `Med50`, y = `CTRange`, colour = Group.2)) + standard_theme + ylab("CT Range (°C)") + scale_colour_manual(values=cbPalette) + guides(color = guide_legend(title = "Family  "))
+
+#ggsave("CTrange_v_lat.tiff", units="in", width=5, height=4, dpi=300, compression = 'lzw')
+
+pairs(AllCTdata[,c(5,16,17,18,20)], pch = 19)
+#CTRange50plot <- CT_Speciesmean %>% ggplot() + geom_point(aes(x = `Species Latitude 50 (°N)`, y = `CTRange (°C)`)) + geom_line(aes(x = `Species Latitude 50 (°N)`, y = pred3)) + geom_line(aes(x = `Species Latitude 50 (°N)`, y = pred4)) + standard_theme
+```
+
+```{r}
+#Put Ctmax Ctmin and CT range on same panel fig
+panel_plot <- ggarrange(CTmaxplot + rremove("xlab"), labels= c("a)", "b)", "c)"), label.y = 1.05, CTminplot, common.legend= TRUE, legend="right", ncol = 3, nrow = 1)
+
+annotate_figure(panel_plot, bottom= text_grob("Species Median Latitude (°N)", size=14))
+
+ggsave("CTpanelplot_v_lat.tiff", units="in", width=8, height=5, dpi=300, compression = 'lzw')
+```
+
+```{r}
+#Plots to compare Median vs. Mean latitude
+
+#high_low_diet_plot <- ggarrange(CTMax50plot + rremove("xlab") + rremove("ylab"), labels= c("a", "b", "c", "d", "e", "f"), label.y = 1.05, CTMin50plot + rremove("xlab") + rremove("ylab"), CTRange50plot + rremove("xlab") + rremove("ylab"), common.legend= TRUE, ncol = 3, nrow = 1)
+  
+#annotate_figure(high_low_diet_plot, bottom= text_grob("Species Latitude (°N)", size=14),
+#left= text_grob("CT Value (°C)", size=14, rot=90))
+```
+
+
+```{r}
+#Put Ctmax Ctmin and CT range on same panel fig
+panel_plot <- ggarrange(CTmaxplot + rremove("xlab"), labels= c("a)", "b)", "c)"), label.y = 1.05, CTminplot + rremove("xlab"), CTRangeplot + rremove("xlab"), common.legend= TRUE, legend="right", ncol = 3, nrow = 1)
+
+annotate_figure(panel_plot, bottom= text_grob("Species Median Latitude (°N)", size=14))
+
+ggsave("CTpanelplot_v_lat.tiff", units="in", width=8, height=5, dpi=300, compression = 'lzw')
+```
+
+```{r}
+#selection of model relationship between species latitude and CTrange
+CTrangelm <- lm(`CTRange (°C)`~`Species Latitude (°N)`, data = CT_Speciesmean)
+CTrangeloglm <- lm(`CTRange (°C)`~log(`Species Latitude (°N)`), data = CT_Speciesmean)
+CT_aic <- AIC(CTrangelm, CTrangeloglm)
+CT_aic$model <- row.names(CT_aic)
+CT_aic <- CT_aic %>% mutate(del_AIC = AIC - min(AIC))
+CT_aic
+summary(CTrangeloglm)
+summary(CTrangelm)
+CT_Speciesmean$pred <- predict(CTrangelm)
+```
+
+```{r}
+CTMax50latrangeplot <- CTMax2_results %>% filter(`Acclimation temp (°C)` == 20 , Species %in% c("Atlantic Thread Herring", "Black sea bass", "Filefish", "Gag grouper", "Gray snapper", "Gulf Flounder", "Lane snapper", "Spotted sea trout", "Permit", "Pinfish", "Pompano", "Sheepshead", "Southern Kingfish", "Spot", "Tautog")) %>% ggplot() + geom_errorbar(aes(x = `Latitude Range 50`, y = mean, ymin = mean - se, ymax = mean + se, group = Species, colour = Family)) + geom_point(aes(x = `Latitude Range 50`, y = mean, colour = Family)) + standard_theme + ylab("CTMax (°C)") + scale_colour_manual(values=cbPalette)
+
+CTMin50latrangeplot <- CTMin2_results %>% filter(`Acclimation temp (°C)` == 20) %>% filter(Species %in% c("Atlantic Thread Herring", "Black sea bass", "Filefish", "Gag grouper", "Gray snapper", "Gulf Flounder", "Spotted sea trout", "Permit", "Pinfish", "Pompano", "Sheepshead", "Southern Kingfish", "Spot", "Tautog")) %>% ggplot() + geom_errorbar(aes(x = `Latitude Range 50`, y = mean, ymin = mean - se, ymax = mean + se, group = Species, colour = Family)) + geom_point(aes(x = `Latitude Range 50`, y = mean, colour = Family)) + standard_theme + ylab("CTMin (°C)") + scale_colour_manual(values=cbPalette)
+```
+
+```{r}
+hist(CT_Speciesmean$`CTRange (°C)`, col='steelblue')
+CT_Speciesmean$`CTRange (°C)` <- (CT_Speciesmean$`CTRange (°C)`)^2
+
+shapiro.test(CT_Speciesmean$`CTRange (°C)`)
+
+CTlatrange50lm <- lm(`CTRange (°C)`~`Latitude Range 50 (°)`, data = CT_Speciesmean)
+summary(CTlatrange50lm)
+CTlatrange50loglm <- lm(`CTRange (°C)`~log(`Latitude Range 50 (°)`), data = CT_Speciesmean)
+summary(CTlatrange50loglm)
+CTlatrange50_aic <- AIC(CTlatrange50lm, CTlatrange50loglm)
+CTlatrange50_aic$model <- row.names(CTlatrange50_aic)
+CTlatrange50_aic <- CTlatrange50_aic %>% mutate(del_AIC = AIC - min(AIC))
+CTlatrange50_aic
+CT_Speciesmean$pred5 <- predict(CTlatrange50lm)
+CT_Speciesmean$pred6 <- predict(CTlatrange50loglm)
+
+CTlatrangelm <- lm(`CTRange (°C)`~`Latitude Range (°)`, data = CT_Speciesmean)
+summary(CTlatrangelm)
+CTlatrangeloglm <- lm(`CTRange (°C)`~log(`Latitude Range (°)`), data = CT_Speciesmean)
+summary(CTlatrangeloglm)
+CTlatrange_aic <- AIC(CTlatrangelm, CTlatrangeloglm)
+CTlatrange_aic$model <- row.names(CTlatrange_aic)
+CTlatrange_aic <- CTlatrange_aic %>% mutate(del_AIC = AIC - min(AIC))
+CTlatrange_aic
+CT_Speciesmean$pred7 <- predict(CTlatrangelm)
+CT_Speciesmean$pred8 <- predict(CTlatrangeloglm)
+
+CT_Speciesmean$`CTRange (°C)` <- sqrt(CT_Speciesmean$`CTRange (°C)`)
+CT_Speciesmean$pred5 <- sqrt(CT_Speciesmean$pred5)
+CT_Speciesmean$pred6 <- sqrt(CT_Speciesmean$pred6)
+CT_Speciesmean$pred7 <- sqrt(CT_Speciesmean$pred7)
+CT_Speciesmean$pred8 <- sqrt(CT_Speciesmean$pred8)
+
+CTRange50latrangeplot <- CT_Speciesmean %>% ggplot() + geom_point(aes(x = `Latitude Range 50 (°)`, y = `CTRange (°C)`)) + geom_line(aes(x = `Latitude Range 50 (°)`, y = pred5)) + standard_theme
+
+ CT_Speciesmean %>% ggplot() + geom_point(aes(x = `Latitude Range (°)`, y = `CTRange (°C)`)) + geom_line(aes(x = `Latitude Range (°)`, y = pred7)) + standard_theme
+```
+
+```{r}
+high_low_diet_plot <- ggarrange(CTMax50latrangeplot + rremove("xlab") + rremove("ylab"), labels= c("a", "b", "c", "d", "e", "f"), label.y = 1.05, CTMin50latrangeplot + rremove("xlab") + rremove("ylab"), CTRange50latrangeplot + rremove("xlab") + rremove("ylab"), common.legend= TRUE, ncol = 3, nrow = 1)
+  
+annotate_figure(high_low_diet_plot, bottom= text_grob("Latitude Range (°N)", size=14),
+left= text_grob("CT Value (°C)", size=14, rot=90))
+```
